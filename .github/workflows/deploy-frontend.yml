@@ -1,0 +1,41 @@
+name: 🚀 Deploy Frontend to EC2
+
+on:
+  push:
+    branches:
+      - main  # run when main branch is updated
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18  # or your version
+
+      - name: Install dependencies and build
+        run: |
+          npm ci
+          npm run build
+
+      - name: Setup SSH key
+        uses: webfactory/ssh-agent@v0.8.1
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+
+      - name: Deploy build files to EC2
+        run: |
+          rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
+            dist/ ubuntu@${{ secrets.EC2_HOST }}:/home/ubuntu/Front-end-by-vignesh/dist/
+
+      - name: Reload Nginx
+        run: |
+          ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} << 'EOF'
+          sudo nginx -t
+          sudo systemctl reload nginx
+          EOF
