@@ -67,7 +67,7 @@ const Login: React.FC = () => {
 
   return (
     <>
-      <title>Login | Firehub ATS</title>
+      <title>Login | Firehub🔥 ATS</title>
       <meta
         name="description"
         content="Login to your HireHub ATS account to manage your recruitment process efficiently."
