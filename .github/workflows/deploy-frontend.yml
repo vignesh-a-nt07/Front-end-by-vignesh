@@ -3,7 +3,7 @@ name: 🚀 Deploy Frontend to EC2
 on:
   push:
     branches:
-      - main  # Run on push to main
+      - main  # Run when code is pushed to main branch
 
 jobs:
   deploy:
@@ -22,31 +22,29 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} << 'EOF'
           set -e
-          cd ~/Front-end-by-vignesh
 
-          echo "🔧 Loading NVM..."
-          export NVM_DIR="$HOME/.nvm"
-          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" || echo "⚠️ NVM not found"
+          echo "🔧 Switching to project directory..."
+          cd /var/www/frontend
 
-          echo "📦 Using Node version:"
-          node -v || (echo "Installing Node..." && curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash && source ~/.nvm/nvm.sh && nvm install --lts)
-          node -v
-
-          echo "📥 Pulling latest code..."
-          git pull origin main
+          echo "📦 Pulling latest code..."
+          git pull origin main || echo "⚠️ No Git repo found, skipping pull"
 
           echo "🧹 Cleaning old build..."
           rm -rf dist node_modules
 
-          echo "📦 Installing dependencies..."
-          npm install
+          echo "🔧 Ensuring Node.js available..."
+          export NVM_DIR="$HOME/.nvm"
+          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" || echo "⚠️ NVM not found"
+          node -v || (echo "Installing Node..." && curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash && source ~/.nvm/nvm.sh && nvm install --lts)
 
-          echo "🏗️ Building new version..."
+          echo "📥 Installing dependencies..."
+          npm install --legacy-peer-deps
+
+          echo "🏗️ Building frontend..."
           npm run build
 
           echo "🔁 Reloading Nginx..."
-          sudo nginx -t
-          sudo systemctl reload nginx
+          sudo nginx -t && sudo systemctl reload nginx
 
           echo "✅ Frontend deployed successfully!"
           EOF
