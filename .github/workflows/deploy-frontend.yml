@@ -1,4 +1,4 @@
-name: 🚀 Deploy Frontend to EC2
+name: "🚀 Deploy Frontend to EC2"
 
 on:
   push:
@@ -24,18 +24,34 @@ jobs:
           set -e
 
           echo "🔧 Switching to project directory..."
+          if [ ! -d "/var/www/frontend" ]; then
+            echo "Creating directory /var/www/frontend"
+            sudo mkdir -p /var/www/frontend
+            sudo chown ubuntu:ubuntu /var/www/frontend
+          fi
           cd /var/www/frontend
 
           echo "📦 Pulling latest code..."
-          git pull origin main || echo "⚠️ No Git repo found, skipping pull"
+          if [ -d .git ]; then
+            git fetch origin main && git reset --hard origin/main
+          else
+            git clone https://github.com/${{ github.repository }} . || echo "⚠️ Repo clone failed"
+          fi
 
           echo "🧹 Cleaning old build..."
           rm -rf dist node_modules
 
-          echo "🔧 Ensuring Node.js available..."
+          echo "🔧 Ensuring Node.js is available..."
           export NVM_DIR="$HOME/.nvm"
-          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" || echo "⚠️ NVM not found"
-          node -v || (echo "Installing Node..." && curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash && source ~/.nvm/nvm.sh && nvm install --lts)
+          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" || (
+            echo "⚠️ NVM not found, installing..."
+            curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+            source ~/.nvm/nvm.sh
+          )
+          nvm install 18
+          nvm use 18
+          node -v
+          npm -v
 
           echo "📥 Installing dependencies..."
           npm install --legacy-peer-deps
