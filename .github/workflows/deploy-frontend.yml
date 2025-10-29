@@ -13,38 +13,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-<<<<<<< HEAD
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18
-
-=======
->>>>>>> 2bf242e0890f7e53b70e841dc27cd09709a8b96f
       - name: Setup SSH key
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
-<<<<<<< HEAD
-      - name: Deploy to EC2 and Build
-=======
       - name: Deploy and Build on EC2
->>>>>>> 2bf242e0890f7e53b70e841dc27cd09709a8b96f
         run: |
           ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} << 'EOF'
           set -e
           cd ~/Front-end-by-vignesh
 
-<<<<<<< HEAD
-          echo "📦 Pulling latest code..."
-          git pull origin main
-
-          echo "🧹 Cleaning old build..."
-          rm -rf dist
-
-          echo "📥 Installing dependencies..."
-=======
           echo "🔧 Loading NVM..."
           export NVM_DIR="$HOME/.nvm"
           [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" || echo "⚠️ NVM not found"
@@ -60,7 +39,6 @@ jobs:
           rm -rf dist node_modules
 
           echo "📦 Installing dependencies..."
->>>>>>> 2bf242e0890f7e53b70e841dc27cd09709a8b96f
           npm install
 
           echo "🏗️ Building new version..."
