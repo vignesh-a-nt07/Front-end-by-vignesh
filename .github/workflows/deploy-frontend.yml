@@ -16,26 +16,34 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18  # or your version
-
-      - name: Install dependencies and build
-        run: |
-          npm ci
-          npm run build
+          node-version: 18
 
       - name: Setup SSH key
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
-      - name: Deploy build files to EC2
-        run: |
-          rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
-            dist/ ubuntu@${{ secrets.EC2_HOST }}:/home/ubuntu/Front-end-by-vignesh/dist/
-
-      - name: Reload Nginx
+      - name: Deploy to EC2 and Build
         run: |
           ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} << 'EOF'
+          set -e
+          cd ~/Front-end-by-vignesh
+
+          echo "📦 Pulling latest code..."
+          git pull origin main
+
+          echo "🧹 Cleaning old build..."
+          rm -rf dist
+
+          echo "📥 Installing dependencies..."
+          npm install
+
+          echo "🏗️ Building new version..."
+          npm run build
+
+          echo "🔁 Reloading Nginx..."
           sudo nginx -t
           sudo systemctl reload nginx
+
+          echo "✅ Frontend deployed successfully!"
           EOF
