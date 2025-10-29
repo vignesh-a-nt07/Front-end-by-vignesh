@@ -87,7 +87,7 @@ const Login: React.FC = () => {
             sx={{ width: '100%', bgcolor: 'background.paper', p: 4, borderRadius: 2, boxShadow: 3 }}
           >
             <Typography variant="h5" component="h1" gutterBottom>
-              HariHub🔥 ATS Login
+              AbiHub🔥 ATS Login
             </Typography>
 
             {error && (
