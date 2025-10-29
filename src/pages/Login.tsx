@@ -67,7 +67,7 @@ const Login: React.FC = () => {
 
   return (
     <>
-      <title>Login | Firehub🔥 ATS</title>
+      <title>Login | HireHub ATS</title>
       <meta
         name="description"
         content="Login to your HireHub ATS account to manage your recruitment process efficiently."
@@ -87,7 +87,7 @@ const Login: React.FC = () => {
             sx={{ width: '100%', bgcolor: 'background.paper', p: 4, borderRadius: 2, boxShadow: 3 }}
           >
             <Typography variant="h5" component="h1" gutterBottom>
-              FireHub🔥 ATS Login
+              HireHub ATS Login
             </Typography>
 
             {error && (

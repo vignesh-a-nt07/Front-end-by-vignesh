@@ -23,7 +23,7 @@ window.addEventListener('error', (ev) => {
       colno: ee.colno,
     });
   } catch (e) {
-    console.error('Failed to log global error', e);
+    console.error('Failed to log error', e);
   }
 });
 
