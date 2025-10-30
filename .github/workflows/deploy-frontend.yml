@@ -45,14 +45,20 @@ jobs:
             mkdir -p "\$NVM_DIR"
             curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
           fi
+
+          # Load NVM properly into this session
+          export NVM_DIR="\$HOME/.nvm"
           [ -s "\$NVM_DIR/nvm.sh" ] && . "\$NVM_DIR/nvm.sh"
+          [ -s "\$NVM_DIR/bash_completion" ] && . "\$NVM_DIR/bash_completion"
+
+          echo "✅ NVM version:"
+          bash -ic "nvm --version" || echo '⚠️ Unable to load NVM via interactive shell'
 
           echo "📦 Installing Node.js v22..."
-          nvm install 22
-          nvm use 22
+          bash -ic "nvm install 22 && nvm use 22"
 
           echo "📥 Installing dependencies..."
-          npm install --legacy-peer-deps
+          bash -ic "npm install --legacy-peer-deps"
 
           echo "🧾 Creating .env from GitHub secret..."
           if [ -n "${{ secrets.FRONTEND_ENV_FILE }}" ]; then
@@ -62,7 +68,7 @@ jobs:
           fi
 
           echo "🏗️ Building frontend..."
-          npm run build
+          bash -ic "npm run build"
 
           echo "📂 Verifying build directory..."
           if [ ! -d "dist" ]; then
