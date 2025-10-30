@@ -22,7 +22,6 @@ jobs:
         run: |
           echo "${{ secrets.FRONTEND_ENV_FILE }}" > .env
           echo "✅ .env file created:"
-          cat .env
 
       - name: Install dependencies
         run: npm ci
@@ -46,4 +45,4 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            sudo systemctl restart nginx
+            sudo nginx -t && sudo systemctl reload nginx
