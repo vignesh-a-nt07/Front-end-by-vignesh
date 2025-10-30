@@ -1,69 +1,61 @@
-name: "🚀 Deploy Frontend to EC2"
+name: 🚀 Frontend Deploy to EC2
 
 on:
   push:
     branches:
-      - main  # Trigger deployment when main branch is updated
+      - main
 
 jobs:
   deploy:
+    name: Deploy Frontend to EC2
     runs-on: ubuntu-latest
 
     steps:
-      - name: 🧾 Checkout code
+      - name: 🧾 Checkout Repository
         uses: actions/checkout@v4
 
-      - name: 🔑 Setup SSH key
-        uses: webfactory/ssh-agent@v0.9.0
-        with:
-          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+      - name: ⚙️ Setup SSH Access
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
 
-      - name: 🚀 Deploy Frontend
+      - name: 🚀 Deploy to EC2
         run: |
           ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} << 'EOF'
           set -e
           echo "🔧 Switching to frontend directory..."
-          if [ ! -d "/var/www/frontend" ]; then
-            sudo mkdir -p /var/www/frontend
-            sudo chown ubuntu:ubuntu /var/www/frontend
-          fi
-          cd /var/www/frontend
+          cd /home/ubuntu/Front-end-by-vignesh
 
           echo "📦 Fetching latest code..."
-          if [ -d .git ]; then
-            git fetch origin main && git reset --hard origin/main
-          else
-            git clone https://github.com/${{ github.repository }} . || echo "⚠️ Clone failed"
-          fi
+          git fetch origin main
+          git reset --hard origin/main
 
           echo "🧹 Cleaning old build..."
-          rm -rf dist node_modules
+          rm -rf dist
 
-          echo "🔧 Ensuring Node.js is available..."
-          export NVM_DIR="$HOME/.nvm"
-          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" || (
-            echo "⚙️ Installing NVM..."
-            curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-            source ~/.nvm/nvm.sh
-          )
-          nvm install 18
-          nvm use 18
+          echo "🔧 Ensuring Node.js v20 is available..."
+          export NVM_DIR="\$HOME/.nvm"
+          [ -s "\$NVM_DIR/nvm.sh" ] && \. "\$NVM_DIR/nvm.sh"
+          nvm install 20
+          nvm use 20
 
           echo "📥 Installing dependencies..."
-          npm install --legacy-peer-deps
+          npm ci
 
           echo "🧾 Writing .env from GitHub Secret..."
-          echo "${{ secrets.FRONTEND_ENV_FILE }}" > .env
+          echo "${{ secrets.FRONTEND_ENV }}" > .env
 
           echo "🏗️ Building frontend..."
           npm run build
 
-          echo "📂 Deploying build to Nginx directory..."
+          echo "📂 Deploying build to /var/www/frontend ..."
+          sudo mkdir -p /var/www/frontend
+          sudo chown -R ubuntu:ubuntu /var/www/frontend
           sudo rm -rf /var/www/frontend/*
           sudo cp -r dist/* /var/www/frontend/
 
-          echo "🔁 Reloading Nginx..."
-          sudo nginx -t && sudo systemctl reload nginx
-
-          echo "✅ Frontend deployed successfully!"
+          echo "🔄 Reloading Nginx..."
+          sudo systemctl reload nginx
+          echo "✅ Deployment complete!"
           EOF
