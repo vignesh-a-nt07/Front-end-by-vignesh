@@ -1,49 +1,69 @@
-name: Deploy Frontend to EC2
+name: "🚀 Deploy Frontend to EC2"
 
 on:
   push:
     branches:
-      - main
+      - main  # Trigger deployment when main branch is updated
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: 🧾 Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: 🔑 Setup SSH key
+        uses: webfactory/ssh-agent@v0.9.0
         with:
-          node-version: 20
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build frontend
-        run: npm run build
-
-      - name: Deploy to EC2
-        env:
-          PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
-          HOST: ${{ secrets.EC2_HOST }}
-          USER: ubuntu
+      - name: 🚀 Deploy Frontend
         run: |
-          echo "$PRIVATE_KEY" > private_key.pem
-          chmod 600 private_key.pem
-          ssh -o StrictHostKeyChecking=no -i private_key.pem $USER@$HOST << 'EOF'
-            echo "🧹 Cleaning old frontend build..."
-            sudo rm -rf /var/www/frontend/*
-            echo "📦 Creating target directory..."
+          ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} << 'EOF'
+          set -e
+          echo "🔧 Switching to frontend directory..."
+          if [ ! -d "/var/www/frontend" ]; then
             sudo mkdir -p /var/www/frontend
-            sudo chown -R ubuntu:ubuntu /var/www/frontend
-          EOF
+            sudo chown ubuntu:ubuntu /var/www/frontend
+          fi
+          cd /var/www/frontend
 
-          echo "🚀 Copying build files..."
-          scp -o StrictHostKeyChecking=no -i private_key.pem -r dist/* $USER@$HOST:/var/www/frontend/
+          echo "📦 Fetching latest code..."
+          if [ -d .git ]; then
+            git fetch origin main && git reset --hard origin/main
+          else
+            git clone https://github.com/${{ github.repository }} . || echo "⚠️ Clone failed"
+          fi
 
-          ssh -o StrictHostKeyChecking=no -i private_key.pem $USER@$HOST << 'EOF'
-            echo "🔁 Restarting Nginx..."
-            sudo systemctl reload nginx
+          echo "🧹 Cleaning old build..."
+          rm -rf dist node_modules
+
+          echo "🔧 Ensuring Node.js is available..."
+          export NVM_DIR="$HOME/.nvm"
+          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" || (
+            echo "⚙️ Installing NVM..."
+            curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+            source ~/.nvm/nvm.sh
+          )
+          nvm install 18
+          nvm use 18
+
+          echo "📥 Installing dependencies..."
+          npm install --legacy-peer-deps
+
+          echo "🧾 Writing .env from GitHub Secret..."
+          echo "${{ secrets.FRONTEND_ENV_FILE }}" > .env
+
+          echo "🏗️ Building frontend..."
+          npm run build
+
+          echo "📂 Deploying build to Nginx directory..."
+          sudo rm -rf /var/www/frontend/*
+          sudo cp -r dist/* /var/www/frontend/
+
+          echo "🔁 Reloading Nginx..."
+          sudo nginx -t && sudo systemctl reload nginx
+
+          echo "✅ Frontend deployed successfully!"
           EOF
