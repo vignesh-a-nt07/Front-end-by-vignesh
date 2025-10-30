@@ -10,64 +10,34 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Deploy Frontend to EC2
-        run: |
-          ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} << 'EOF'
-          set -e
-          echo "Navigating to deployment directory..."
-          sudo mkdir -p /var/www/frontend
-          sudo chown -R ubuntu:ubuntu /var/www/frontend
-          cd /var/www/frontend
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
 
-          echo "Fetching latest code..."
-          if [ -d .git ]; then
-            git fetch origin main && git reset --hard origin/main
-          else
-            git clone https://github.com/${{ github.repository }} . || echo "Clone skipped"
-          fi
+      - name: Install dependencies
+        run: npm ci
 
-          echo "Cleaning old build files..."
-          rm -rf dist node_modules
+      - name: Build project
+        run: npm run build
 
-          echo "Installing Node.js via NVM..."
-          export NVM_DIR="\$HOME/.nvm"
-          if [ ! -d "\$NVM_DIR" ]; then
-            mkdir -p "\$NVM_DIR"
-            curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-          fi
-          [ -s "\$NVM_DIR/nvm.sh" ] && . "\$NVM_DIR/nvm.sh"
-          nvm install 22
-          nvm use 22
+      - name: Deploy to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "dist/*"
+          target: "/var/www/frontend"
 
-          echo "Installing dependencies..."
-          npm install --legacy-peer-deps
-
-          echo "Creating .env file from GitHub secret..."
-          if [ -n "${{ secrets.FRONTEND_ENV_FILE }}" ]; then
-            echo "${{ secrets.FRONTEND_ENV_FILE }}" > .env
-            echo ".env file created."
-          else
-            echo "No FRONTEND_ENV_FILE found — skipping .env creation."
-          fi
-
-          echo "Building frontend..."
-          npm run build
-
-          echo "Verifying dist folder..."
-          if [ ! -d "dist" ]; then
-            echo "Build failed — dist not found!"
-            exit 1
-          fi
-
-          echo "Deploying built files to Nginx root..."
-          sudo rm -rf /var/www/frontend/*
-          sudo cp -r dist/* /var/www/frontend/
-
-          echo "Reloading Nginx..."
-          sudo nginx -t && sudo systemctl reload nginx
-
-          echo "Deployment completed successfully!"
-          EOF
+      - name: Restart Nginx
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            sudo systemctl restart nginx
