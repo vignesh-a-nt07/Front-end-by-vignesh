@@ -3,7 +3,7 @@ name: "🚀 Deploy Frontend to EC2"
 on:
   push:
     branches:
-      - main  # Trigger deployment when main branch is updated
+      - main
 
 jobs:
   deploy:
@@ -39,13 +39,20 @@ jobs:
           echo "🧹 Cleaning old build files..."
           rm -rf dist node_modules
 
-          echo "🔧 Ensuring Node.js (v22) is installed..."
+          echo "🔧 Installing Node.js via NVM..."
           export NVM_DIR="\$HOME/.nvm"
-          [ -s "\$NVM_DIR/nvm.sh" ] && \. "\$NVM_DIR/nvm.sh" || (
-            echo "⚙️ Installing NVM..."
+          mkdir -p "\$NVM_DIR"
+
+          if [ ! -s "\$NVM_DIR/nvm.sh" ]; then
+            echo "⚙️ NVM not found — installing..."
             curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-            source ~/.nvm/nvm.sh
-          )
+          fi
+
+          # Load NVM manually (since SSH session is non-interactive)
+          export NVM_DIR="\$HOME/.nvm"
+          [ -s "\$NVM_DIR/nvm.sh" ] && \. "\$NVM_DIR/nvm.sh"
+          [ -s "\$NVM_DIR/bash_completion" ] && \. "\$NVM_DIR/bash_completion"
+
           nvm install 22
           nvm use 22
 
@@ -64,7 +71,8 @@ jobs:
 
           echo "📂 Deploying build to Nginx root (/var/www/frontend/dist)..."
           if [ -d "dist" ]; then
-            sudo rm -rf /var/www/frontend/dist/*
+            sudo rm -rf /var/www/frontend/dist
+            sudo mkdir -p /var/www/frontend/dist
             sudo cp -r dist/* /var/www/frontend/dist/
           else
             echo "❌ Build failed — dist folder not found."
