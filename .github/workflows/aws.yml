@@ -18,6 +18,12 @@ jobs:
         with:
           node-version: 22
 
+      - name: Create .env file
+        run: |
+          echo "${{ secrets.FRONTEND_ENV_FILE }}" > .env
+          echo "✅ .env file created:"
+          cat .env
+
       - name: Install dependencies
         run: npm ci
 
