@@ -1,4 +1,4 @@
-name: 🚀 Frontend Deploy to EC2
+name: Deploy Frontend to EC2
 
 on:
   push:
@@ -7,63 +7,43 @@ on:
 
 jobs:
   deploy:
-    name: Deploy Frontend to EC2
     runs-on: ubuntu-latest
 
     steps:
-      - name: 🧾 Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: ⚙️ Setup SSH Access
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Deploy to EC2
+        env:
+          PRIVATE_KEY: ${{ secrets.EC2_SSH_KEY }}
+          HOST: ${{ secrets.EC2_HOST }}
+          USER: ubuntu
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
+          echo "$PRIVATE_KEY" > private_key.pem
+          chmod 600 private_key.pem
+          ssh -o StrictHostKeyChecking=no -i private_key.pem $USER@$HOST << 'EOF'
+            echo "🧹 Cleaning old frontend build..."
+            sudo rm -rf /var/www/frontend/*
+            echo "📦 Creating target directory..."
+            sudo mkdir -p /var/www/frontend
+            sudo chown -R ubuntu:ubuntu /var/www/frontend
+          EOF
 
-      - name: 🚀 Deploy to EC2
-        run: |
-          ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} << 'EOF'
-          set -e
-          echo "🔧 Switching to frontend directory..."
-          cd /home/ubuntu/Front-end-by-vignesh
+          echo "🚀 Copying build files..."
+          scp -o StrictHostKeyChecking=no -i private_key.pem -r dist/* $USER@$HOST:/var/www/frontend/
 
-          echo "📦 Fetching latest code..."
-          git fetch origin main
-          git reset --hard origin/main
-
-          echo "🧹 Cleaning old build..."
-          rm -rf dist
-
-          echo "🔧 Ensuring Node.js 20 is installed..."
-          if ! command -v node >/dev/null || [ "$(node -v | cut -d'.' -f1)" != "v20" ]; then
-            echo "Removing old Node.js versions..."
-            sudo apt-get remove -y nodejs libnode-dev nodejs-doc || true
-            sudo rm -rf /usr/lib/node_modules /usr/include/node /usr/share/doc/nodejs
-
-            echo "Installing Node.js 20..."
-            curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-            sudo apt-get install -y nodejs
-          fi
-
-          node -v
-          npm -v
-
-          echo "📥 Installing dependencies..."
-          npm ci
-
-          echo "🧾 Writing .env from GitHub Secret..."
-          echo "${{ secrets.FRONTEND_ENV }}" > .env
-
-          echo "🏗️ Building frontend..."
-          npm run build
-
-          echo "📂 Deploying build to /var/www/frontend ..."
-          sudo mkdir -p /var/www/frontend
-          sudo chown -R ubuntu:ubuntu /var/www/frontend
-          sudo rm -rf /var/www/frontend/*
-          sudo cp -r dist/* /var/www/frontend/
-
-          echo "🔄 Reloading Nginx..."
-          sudo systemctl reload nginx
-          echo "✅ Deployment complete!"
+          ssh -o StrictHostKeyChecking=no -i private_key.pem $USER@$HOST << 'EOF'
+            echo "🔁 Restarting Nginx..."
+            sudo systemctl reload nginx
           EOF
