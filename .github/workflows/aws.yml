@@ -13,31 +13,58 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build project
-        run: npm run build
-
-      - name: Deploy to EC2
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ubuntu
-          key: ${{ secrets.EC2_SSH_KEY }}
-          source: "dist/*"
-          target: "/var/www/frontend"
-
-      - name: Restart Nginx
+      - name: Deploy and Build on EC2
         uses: appleboy/ssh-action@v0.1.10
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            sudo systemctl restart nginx
+            set -e
+            echo "Starting frontend deployment..."
+
+            # Go to or create deployment directory
+            sudo mkdir -p /var/www/frontend
+            sudo chown -R ubuntu:ubuntu /var/www/frontend
+            cd /var/www/frontend
+
+            # Clone or update code
+            if [ -d .git ]; then
+              git fetch origin main && git reset --hard origin/main
+            else
+              git clone https://github.com/${{ github.repository }} . || echo "Repository already exists"
+            fi
+
+            # Clean old files
+            rm -rf dist node_modules
+
+            # Install Node.js (NVM)
+            export NVM_DIR="$HOME/.nvm"
+            if [ ! -d "$NVM_DIR" ]; then
+              mkdir -p "$NVM_DIR"
+              curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+            fi
+            [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+
+            nvm install 22
+            nvm use 22
+
+            # Install dependencies
+            npm install --legacy-peer-deps
+
+            # Write the .env file from GitHub Secret
+            echo "${{ secrets.FRONTEND_ENV_FILE }}" > .env
+            echo ".env file created successfully."
+
+            # Build the frontend
+            npm run build
+
+            # Copy build output to Nginx root
+            sudo mkdir -p /var/www/frontend/dist
+            sudo rm -rf /var/www/frontend/*
+            sudo cp -r dist/* /var/www/frontend/
+
+            # Restart Nginx
+            sudo nginx -t && sudo systemctl reload nginx
+
+            echo "Frontend deployed successfully."
