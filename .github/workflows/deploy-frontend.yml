@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 🧾 Checkout code
+      - name: 🧾 Checkout repository
         uses: actions/checkout@v4
 
       - name: 🔑 Setup SSH key
@@ -18,11 +18,11 @@ jobs:
         with:
           ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
-      - name: 🚀 Deploy Frontend
+      - name: 🚀 Deploy Frontend to EC2
         run: |
           ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} << 'EOF'
           set -e
-          echo "🔧 Switching to frontend directory..."
+          echo "🔧 Navigating to deployment directory..."
           if [ ! -d "/var/www/frontend" ]; then
             sudo mkdir -p /var/www/frontend
             sudo chown ubuntu:ubuntu /var/www/frontend
@@ -36,34 +36,43 @@ jobs:
             git clone https://github.com/${{ github.repository }} . || echo "⚠️ Clone failed"
           fi
 
-          echo "🧹 Cleaning old build..."
+          echo "🧹 Cleaning old build files..."
           rm -rf dist node_modules
 
-          echo "🔧 Ensuring Node.js is available..."
-          export NVM_DIR="$HOME/.nvm"
-          [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" || (
+          echo "🔧 Ensuring Node.js (v22) is installed..."
+          export NVM_DIR="\$HOME/.nvm"
+          [ -s "\$NVM_DIR/nvm.sh" ] && \. "\$NVM_DIR/nvm.sh" || (
             echo "⚙️ Installing NVM..."
             curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
             source ~/.nvm/nvm.sh
           )
-          nvm install 18
-          nvm use 18
+          nvm install 22
+          nvm use 22
 
           echo "📥 Installing dependencies..."
           npm install --legacy-peer-deps
 
-          echo "🧾 Writing .env from GitHub Secret..."
-          echo "${{ secrets.FRONTEND_ENV_FILE }}" > .env
+          echo "🧾 Creating .env from GitHub secret..."
+          if [ -n "${{ secrets.FRONTEND_ENV_FILE }}" ]; then
+            echo "${{ secrets.FRONTEND_ENV_FILE }}" > .env
+          else
+            echo "⚠️ No FRONTEND_ENV_FILE found, skipping."
+          fi
 
           echo "🏗️ Building frontend..."
           npm run build
 
-          echo "📂 Deploying build to Nginx directory..."
-          sudo rm -rf /var/www/frontend/*
-          sudo cp -r dist/* /var/www/frontend/
+          echo "📂 Deploying build to Nginx root (/var/www/frontend/dist)..."
+          if [ -d "dist" ]; then
+            sudo rm -rf /var/www/frontend/dist/*
+            sudo cp -r dist/* /var/www/frontend/dist/
+          else
+            echo "❌ Build failed — dist folder not found."
+            exit 1
+          fi
 
           echo "🔁 Reloading Nginx..."
           sudo nginx -t && sudo systemctl reload nginx
 
-          echo "✅ Frontend deployed successfully!"
+          echo "✅ Deployment successful!"
           EOF
