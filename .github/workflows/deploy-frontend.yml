@@ -36,10 +36,15 @@ jobs:
 
           echo "🔧 Ensuring Node.js 20 is installed..."
           if ! command -v node >/dev/null || [ "$(node -v | cut -d'.' -f1)" != "v20" ]; then
+            echo "Removing old Node.js versions..."
+            sudo apt-get remove -y nodejs libnode-dev nodejs-doc || true
+            sudo rm -rf /usr/lib/node_modules /usr/include/node /usr/share/doc/nodejs
+
             echo "Installing Node.js 20..."
             curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
             sudo apt-get install -y nodejs
           fi
+
           node -v
           npm -v
 
