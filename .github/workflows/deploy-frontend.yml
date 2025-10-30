@@ -3,39 +3,37 @@ name: "🚀 Deploy Frontend to EC2"
 on:
   push:
     branches:
-      - main  # Run when code is pushed to main branch
+      - main  # Trigger deployment when main branch is updated
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: 🧾 Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup SSH key
+      - name: 🔑 Setup SSH key
         uses: webfactory/ssh-agent@v0.9.0
         with:
           ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
 
-      - name: Deploy and Build on EC2
+      - name: 🚀 Deploy Frontend
         run: |
           ssh -o StrictHostKeyChecking=no ubuntu@${{ secrets.EC2_HOST }} << 'EOF'
           set -e
-
-          echo "🔧 Switching to project directory..."
+          echo "🔧 Switching to frontend directory..."
           if [ ! -d "/var/www/frontend" ]; then
-            echo "Creating directory /var/www/frontend"
             sudo mkdir -p /var/www/frontend
             sudo chown ubuntu:ubuntu /var/www/frontend
           fi
           cd /var/www/frontend
 
-          echo "📦 Pulling latest code..."
+          echo "📦 Fetching latest code..."
           if [ -d .git ]; then
             git fetch origin main && git reset --hard origin/main
           else
-            git clone https://github.com/${{ github.repository }} . || echo "⚠️ Repo clone failed"
+            git clone https://github.com/${{ github.repository }} . || echo "⚠️ Clone failed"
           fi
 
           echo "🧹 Cleaning old build..."
@@ -44,20 +42,25 @@ jobs:
           echo "🔧 Ensuring Node.js is available..."
           export NVM_DIR="$HOME/.nvm"
           [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" || (
-            echo "⚠️ NVM not found, installing..."
+            echo "⚙️ Installing NVM..."
             curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
             source ~/.nvm/nvm.sh
           )
           nvm install 18
           nvm use 18
-          node -v
-          npm -v
 
           echo "📥 Installing dependencies..."
           npm install --legacy-peer-deps
 
+          echo "🧾 Writing .env from GitHub Secret..."
+          echo "${{ secrets.FRONTEND_ENV_FILE }}" > .env
+
           echo "🏗️ Building frontend..."
           npm run build
+
+          echo "📂 Deploying build to Nginx directory..."
+          sudo rm -rf /var/www/html/*
+          sudo cp -r dist/* /var/www/html/
 
           echo "🔁 Reloading Nginx..."
           sudo nginx -t && sudo systemctl reload nginx
