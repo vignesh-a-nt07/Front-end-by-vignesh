@@ -10,20 +10,33 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      # 1. Checkout source code
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      # 2. Set up Node.js environment
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 22
 
+      # 3. Create .env file from GitHub secret
       - name: Create .env file
         run: echo "${{ secrets.FRONTEND_ENV_FILE }}" > .env
 
+      # 4. Install dependencies and build the frontend
       - name: Install dependencies and build
         run: |
           npm ci
           npm run build
 
+      # 5. Verify that the build was successful
+      - name: Verify build output
+        run: |
+          echo "Build output:"
+          ls -l dist || (echo "dist folder not found" && exit 1)
+
+      # 6. Prepare the target directory on EC2
       - name: Prepare target directory on EC2
         uses: appleboy/ssh-action@v0.1.10
         with:
@@ -35,6 +48,7 @@ jobs:
             sudo mkdir -p /var/www/frontend/dist
             sudo chown -R ubuntu:ubuntu /var/www/frontend
 
+      # 7. Upload build files to EC2
       - name: Upload build to EC2
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -44,6 +58,7 @@ jobs:
           source: "dist/*"
           target: "/var/www/frontend/dist"
 
+      # 8. Validate and reload Nginx on EC2
       - name: Reload Nginx
         uses: appleboy/ssh-action@v0.1.10
         with:
@@ -51,4 +66,7 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            sudo nginx -t && sudo systemctl reload nginx
+            echo "Validating Nginx configuration..."
+            sudo nginx -t
+            echo "Reloading Nginx..."
+            sudo systemctl reload nginx
