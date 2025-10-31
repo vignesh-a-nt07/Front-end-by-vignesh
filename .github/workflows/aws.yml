@@ -31,10 +31,8 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            if [ -d "/var/www/frontend" ]; then
-              sudo rm -rf /var/www/frontend
-            fi
-            sudo mkdir -p /var/www/frontend
+            sudo rm -rf /var/www/frontend
+            sudo mkdir -p /var/www/frontend/dist
             sudo chown -R ubuntu:ubuntu /var/www/frontend
 
       - name: Upload build to EC2
