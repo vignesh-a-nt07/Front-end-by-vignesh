@@ -56,7 +56,7 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           source: "dist/*"
-          target: "/var/www/frontend/dist"
+          target: "/var/www/frontend"
 
       # 8. Validate and reload Nginx on EC2
       - name: Reload Nginx
