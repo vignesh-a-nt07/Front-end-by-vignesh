@@ -18,13 +18,11 @@ jobs:
 
       - name: Create .env file
         run: echo "${{ secrets.FRONTEND_ENV_FILE }}" > .env
-        working-directory: ./frontend  # <-- change this if your code is inside /frontend
 
       - name: Install dependencies and build
         run: |
           npm ci
           npm run build
-        working-directory: ./frontend  # <-- change this if frontend files are in subfolder
 
       - name: Prepare target directory on EC2
         uses: appleboy/ssh-action@v0.1.10
@@ -43,7 +41,7 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "frontend/dist/*"   # <-- updated path
+          source: "dist/*"
           target: "/var/www/frontend/dist"
 
       - name: Reload Nginx
