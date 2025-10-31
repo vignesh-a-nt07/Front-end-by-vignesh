@@ -44,7 +44,7 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           source: "dist/*"
-          target: "/var/www/frontend"
+          target: "/var/www/frontend/dist"
 
       - name: Reload Nginx
         uses: appleboy/ssh-action@v0.1.10
