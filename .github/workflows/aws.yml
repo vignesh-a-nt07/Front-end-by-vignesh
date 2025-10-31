@@ -24,6 +24,19 @@ jobs:
           npm ci
           npm run build
 
+      - name: Prepare target directory on EC2
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            if [ -d "/var/www/frontend" ]; then
+              sudo rm -rf /var/www/frontend
+            fi
+            sudo mkdir -p /var/www/frontend
+            sudo chown -R ubuntu:ubuntu /var/www/frontend
+
       - name: Upload build to EC2
         uses: appleboy/scp-action@v0.1.7
         with:
